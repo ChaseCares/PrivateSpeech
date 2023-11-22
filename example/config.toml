@@ -1,0 +1,75 @@
+version = "0.1.x"
+
+# (Default=n/a) The base url of the your local server (ip or FQDN)
+url = "http://[0100::0]:5002"
+# (Default="/tmp/private_speech") The directory where the audio clips will be stored.
+tmp_dir = "/tmp/private_speech"
+# (Default=None) Only specify the speaker_id if your model requires it.
+speaker_id = ""
+# (Default=1.0) The playback speed of the audio clips.
+playback_speed = 1.0
+# (Default=50) The minimum length of the audio clips in characters.
+min_length = 50
+# (Default=30) Network time out in seconds.
+timeout = 30
+# (Default=true) If true, the first chunk of text will be small, to start playback quicker.
+quick_first_chunk = true
+# (Default=6) The length of the first chunk, in words.
+quick_first_chunk_length = 6
+
+# See readme for more information about regular expressions
+
+# (Default=[' +', " ",]) A list of substitutions to make before sending the text to the server.
+substitutions = [
+    # Converts multiple spaces to a single space (recommended)
+    [
+        ' +',
+        " ",
+    ],
+
+    # # e.g. -> for example
+    # [
+    #     '[eE]\.[gG]\.?',
+    #     "for example",
+    # ],
+    # # i.e. -> that is
+    # [
+    #     '[iI]\.[eE]\.?',
+    #     "that is",
+    # ],
+    # # etc. -> and so on
+    # [
+    #     '[eE][tT][cC]\.?',
+    #     "and so on",
+    # ],
+    # # a.k.a. -> also known as
+    # [
+    #     '[aA]\.[kK]\.[aA]\.?',
+    #     "also known as",
+    # ],
+    # # i.e. -> that is
+    # [
+    #     '[iI]\.[eE]\.?',
+    #     "that is",
+    # ],
+
+    # # One substitution isnt enough because of the overlapping matches between abbreviations
+    # # like "W.M.D", but because they run sequentially, you can include two and have the second
+    # # match the patterns the first one missed
+    # [
+    #     '([a-zA-Z])\.([a-zA-Z])',
+    #     "$1 dot $2",
+    # ],
+    # [
+    #     '([a-zA-Z])\.([a-zA-Z])',
+    #     "$1 dot $2",
+    # ],
+]
+
+# (Default=['“', '”', '&quot;', '^(\r)?\n+', '^\n'])
+# A list of regexes to strip from the text before sending to the server.
+#
+# “, ”, and &quot; are problematic characters for tts
+# ^(\r)?\n+,^\n is to remove leading newlines, some newlines can get through generally they're not an issue
+
+strip_regexes = ['“', '”', '&quot;', '^(\r)?\n+', '^\n']
