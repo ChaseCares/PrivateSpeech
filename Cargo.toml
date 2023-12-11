@@ -8,7 +8,7 @@ license = "GPL-2.0-only"
 [dependencies]
 arboard = { version = "3.3.0", features = ["wayland-data-control"] }
 reqwest = { version = "0.11.22", features = ["blocking"] }
-url = { version = "2.4.1", features = ["serde"] }
+url = { version = "2.5.0", features = ["serde"] }
 
 directories = "5.0.1"
 rodio = "0.17.3"
@@ -16,7 +16,7 @@ regex = "1.10.2"
 # serde >1.0.184 due to https://github.com/serde-rs/serde/issues/2538
 serde = ">1.0.184"
 toml = "0.8.8"
-sysinfo = "0.29.10"
+sysinfo = "0.29.11"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 ksni = "0.2.1"
