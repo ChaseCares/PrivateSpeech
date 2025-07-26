@@ -91,34 +91,37 @@ mod test_suite {
         );
     }
 
-    #[test]
-    #[cfg(target_os = "linux")]
-    fn menu() {
+    #[tokio::test]
+    async fn menu() {
+        use ksni::TrayMethods;
         use rodio::{OutputStreamBuilder, Sink};
 
-        let service = ksni::TrayService::new(super::Menu {
+        let tray = super::Menu {
             playing: true,
             status: "Testing".into(),
-        });
+        };
 
-        let handle = service.handle();
-        service.spawn();
+        let handle = tray.spawn().await.unwrap();
 
         let stream_handle = OutputStreamBuilder::open_default_stream().unwrap();
         let sink = Sink::connect_new(stream_handle.mixer());
 
-        handle.update(|tray: &mut super::Menu| {
-            assert!(tray.playing);
-            assert_eq!(tray.status, "Testing");
-        });
+        handle
+            .update(|tray: &mut super::Menu| {
+                assert!(tray.playing);
+                assert_eq!(tray.status, "Testing");
+            })
+            .await;
 
-        super::menu_update(&handle.clone(), &sink);
+        super::menu_update(&handle.clone(), &sink).await;
 
-        handle.update(|tray: &mut super::Menu| {
-            tray.playing = false;
-            assert!(!tray.playing);
-            assert_eq!(tray.status, "Playing");
-        });
+        handle
+            .update(|tray: &mut super::Menu| {
+                tray.playing = false;
+                assert!(!tray.playing);
+                assert_eq!(tray.status, "Playing");
+            })
+            .await;
 
         handle.shutdown();
     }
