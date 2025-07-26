@@ -30,11 +30,9 @@ use rodio::{Decoder, OutputStreamBuilder, Sink};
 use sysinfo::{Pid, System};
 
 use config::Config;
-#[cfg(target_os = "linux")]
 use menu::Menu;
 
 mod config;
-#[cfg(target_os = "linux")]
 mod menu;
 
 // Used for substitutions and to remove unwanted test
@@ -181,7 +179,6 @@ fn modify_speed(clip_path: String, speed: f32) -> Result<(), std::io::Error> {
         .map(|_| std::fs::remove_file(tmp_path).unwrap())
 }
 
-#[cfg(target_os = "linux")]
 fn menu_update(handle: &ksni::Handle<Menu>, sink: &Sink) {
     handle.update(|tray: &mut Menu| {
         tray.status = if tray.playing {
@@ -216,18 +213,13 @@ fn main() {
         let sink = Sink::connect_new(stream_handle.mixer());
 
         // Tray icon
-        #[cfg(target_os = "linux")]
-        let handle: Option<ksni::Handle<Menu>>;
-        #[cfg(target_os = "linux")]
-        {
-            let service = ksni::TrayService::new(Menu {
-                playing: true,
-                status: "Playing".into(),
-            });
+        let service = ksni::TrayService::new(Menu {
+            playing: true,
+            status: "Playing".into(),
+        });
 
-            handle = Some(service.handle());
-            service.spawn();
-        }
+        let handle: Option<ksni::Handle<Menu>> = Some(service.handle());
+        service.spawn();
 
         // Config
         // https://github.com/dirs-dev/directories-rs#example
@@ -269,7 +261,6 @@ fn main() {
             config.quick_first_chunk_length,
             &config.split_on,
         ) {
-            #[cfg(target_os = "linux")]
             menu_update(&handle.clone().unwrap(), &sink);
 
             println!("Playing: {text_chunk}");
@@ -309,17 +300,12 @@ fn main() {
             }
         }
         // Play the audio until there's nothing left to play or exited via the menu
-        #[cfg(target_os = "linux")]
         while !sink.empty() {
             // Update the menu tool tip text and play/pause status
 
             menu_update(&handle.clone().unwrap(), &sink);
             sleep(Duration::from_millis(200));
         }
-
-        // Play the audio until there's nothing left to play
-        #[cfg(not(target_os = "linux"))]
-        sink.sleep_until_end();
     }
 }
 
