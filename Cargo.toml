@@ -9,9 +9,9 @@ license = "GPL-2.0-only"
 arboard = { version = "3", features = ["wayland-data-control"] }
 reqwest = { version = "0.12", features = ["blocking"] }
 url = { version = "2", features = ["serde"] }
-ksni = { version = "0.3", default-features = false, features = ["async-io"] }
 tokio = { version = "1.46", features = ["full"] }
 
+ksni = { version = "0.3" }
 directories = "6"
 rodio = "0.21"
 regex = "1.11"
