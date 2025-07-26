@@ -197,7 +197,7 @@ async fn menu_update(handle: &ksni::Handle<Menu>, sink: &Sink) {
 #[allow(clippy::too_many_lines)]
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    const APP_NAME: &str = "private_speech";
+    const APP_NAME: &str = env!("CARGO_PKG_NAME");
 
     let sys = System::new_all();
     let mut previous_process: Option<&sysinfo::Process> = None;
