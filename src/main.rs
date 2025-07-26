@@ -24,6 +24,7 @@ use std::{
 };
 
 use directories::ProjectDirs;
+use ksni::TrayMethods;
 use regex::Regex;
 use reqwest::{StatusCode, blocking::Client};
 use rodio::{Decoder, OutputStreamBuilder, Sink};
@@ -179,20 +180,23 @@ fn modify_speed(clip_path: String, speed: f32) -> Result<(), std::io::Error> {
         .map(|_| std::fs::remove_file(tmp_path).unwrap())
 }
 
-fn menu_update(handle: &ksni::Handle<Menu>, sink: &Sink) {
-    handle.update(|tray: &mut Menu| {
-        tray.status = if tray.playing {
-            sink.play();
-            "Playing".into()
-        } else {
-            sink.pause();
-            "Paused".into()
-        };
-    });
+async fn menu_update(handle: &ksni::Handle<Menu>, sink: &Sink) {
+    handle
+        .update(|tray: &mut Menu| {
+            tray.status = if tray.playing {
+                sink.play();
+                "Playing".into()
+            } else {
+                sink.pause();
+                "Paused".into()
+            };
+        })
+        .await;
 }
 
 #[allow(clippy::too_many_lines)]
-fn main() {
+#[tokio::main(flavor = "current_thread")]
+async fn main() {
     const APP_NAME: &str = "private_speech";
 
     let sys = System::new_all();
@@ -213,13 +217,12 @@ fn main() {
         let sink = Sink::connect_new(stream_handle.mixer());
 
         // Tray icon
-        let service = ksni::TrayService::new(Menu {
+        let tray = Menu {
             playing: true,
             status: "Playing".into(),
-        });
+        };
 
-        let handle: Option<ksni::Handle<Menu>> = Some(service.handle());
-        service.spawn();
+        let handle = tray.spawn().await.unwrap();
 
         // Config
         // https://github.com/dirs-dev/directories-rs#example
@@ -261,7 +264,7 @@ fn main() {
             config.quick_first_chunk_length,
             &config.split_on,
         ) {
-            menu_update(&handle.clone().unwrap(), &sink);
+            menu_update(&handle.clone(), &sink).await;
 
             println!("Playing: {text_chunk}");
             let audio_path = &format!("{}/{}.wav", config.tmp_dir, calculate_hash(text_chunk));
@@ -302,8 +305,7 @@ fn main() {
         // Play the audio until there's nothing left to play or exited via the menu
         while !sink.empty() {
             // Update the menu tool tip text and play/pause status
-
-            menu_update(&handle.clone().unwrap(), &sink);
+            menu_update(&handle.clone(), &sink).await;
             sleep(Duration::from_millis(200));
         }
     }

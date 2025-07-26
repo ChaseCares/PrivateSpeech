@@ -9,6 +9,8 @@ license = "GPL-2.0-only"
 arboard = { version = "3", features = ["wayland-data-control"] }
 reqwest = { version = "0.12", features = ["blocking"] }
 url = { version = "2", features = ["serde"] }
+ksni = { version = "0.3", default-features = false, features = ["async-io"] }
+tokio = { version = "1.46", features = ["full"] }
 
 directories = "6"
 rodio = "0.21"
@@ -17,7 +19,7 @@ regex = "1.11"
 serde = ">1.0.184"
 toml = "0.9"
 sysinfo = "0.36"
-ksni = "0.2"
+
 
 [profile.dev]
 opt-level = 3
