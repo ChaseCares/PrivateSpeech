@@ -2,15 +2,29 @@
 // Copyright (C) 2025  Chase C <hi@chasecares.dev>
 // SPDX-License-Identifier: GPL-2.0-only
 
-use std::io::{BufReader, Write};
-use std::process;
-use std::process::Command;
-use std::time::Duration;
-use std::{ffi::OsStr, fs::File};
+#![warn(
+    clippy::all,
+    clippy::pedantic,
+    missing_debug_implementations,
+    unsafe_code,
+    unused_extern_crates,
+    unused_import_braces,
+    unused_qualifications,
+    trivial_casts,
+    trivial_numeric_casts
+)]
+
+use std::{
+    ffi::OsStr,
+    fs::File,
+    io::{BufReader, Write},
+    process::{self, Command, exit},
+    time::Duration,
+};
 
 use directories::ProjectDirs;
 use regex::Regex;
-use reqwest::{blocking::Client, StatusCode};
+use reqwest::{StatusCode, blocking::Client};
 use rodio::{Decoder, OutputStreamBuilder, Sink};
 use sysinfo::{Pid, System};
 
@@ -25,7 +39,7 @@ mod menu;
 // Used for substitutions and to remove unwanted test
 // TODO: Make this not a return a copy
 fn re(regex: &str, haystack: &str, rep: &str) -> String {
-    let r = Regex::new(regex).unwrap_or_else(|_| panic!("Invalid regex: {}", regex));
+    let r = Regex::new(regex).unwrap_or_else(|_| panic!("Invalid regex: {regex}"));
     r.replace_all(haystack, rep).to_string()
 }
 
@@ -42,7 +56,7 @@ fn get_clipboard() -> String {
     use arboard::Clipboard;
     let mut clipboard = Clipboard::new().unwrap();
     let text = clipboard.get_text().unwrap();
-    println!("Clipboard text was: {}", text);
+    println!("Clipboard text was: {text}");
     text
 }
 
@@ -158,7 +172,7 @@ fn modify_speed(clip_path: String, speed: f32) -> Result<(), std::io::Error> {
     cmd.arg("-i");
     cmd.arg(&tmp_path);
     cmd.arg("-filter:a");
-    cmd.arg(format!("atempo={}", speed));
+    cmd.arg(format!("atempo={speed}"));
     cmd.arg("-vn");
     cmd.arg(clip_path);
 
@@ -167,7 +181,7 @@ fn modify_speed(clip_path: String, speed: f32) -> Result<(), std::io::Error> {
 }
 
 #[cfg(target_os = "linux")]
-fn menu_update(handle: ksni::Handle<Menu>, sink: &Sink) {
+fn menu_update(handle: &ksni::Handle<Menu>, sink: &Sink) {
     handle.update(|tray: &mut Menu| {
         tray.status = if tray.playing {
             sink.play();
@@ -179,6 +193,7 @@ fn menu_update(handle: ksni::Handle<Menu>, sink: &Sink) {
     });
 }
 
+#[allow(clippy::too_many_lines)]
 fn main() {
     const APP_NAME: &str = "private_speech";
 
@@ -218,21 +233,18 @@ fn main() {
         // Config location for Linux: /home/user/.config/private_speech
         let project_dirs = ProjectDirs::from("dev", "chasecares", APP_NAME).unwrap();
         let config_path = project_dirs.config_dir().to_str().unwrap();
-        let config_file = format!("{}/config.toml", config_path);
+        let config_file = format!("{config_path}/config.toml");
 
         let file_content = match std::fs::read_to_string(config_file.clone()) {
             Ok(content) => content,
             Err(err) => {
                 if err.kind() == std::io::ErrorKind::NotFound {
-                    println!(
-                        "Config file not found, please create one at: {}",
-                        config_file
-                    );
-                    println!("See example config at TODO")
+                    println!("Config file not found, please create one at: {config_file}");
+                    println!("See example config at TODO");
                 } else {
-                    println!("Error reading config file: {}", err);
+                    println!("Error reading config file: {err}");
                 }
-                std::process::exit(1);
+                exit(1);
             }
         };
 
@@ -257,55 +269,52 @@ fn main() {
             &config.split_on,
         ) {
             #[cfg(target_os = "linux")]
-            menu_update(handle.clone().unwrap(), &sink);
+            menu_update(&handle.clone().unwrap(), &sink);
 
-            println!("Playing: {}", text_chunk);
+            println!("Playing: {text_chunk}");
             let audio_path = &format!("{}/{}.wav", config.tmp_dir, calculate_hash(text_chunk));
             // Try to open the file, if it doesn't exist, get it from the server
-            match File::open(audio_path) {
-                Ok(file) => {
-                    sink.append(Decoder::new(BufReader::new(file)).unwrap());
-                }
-                Err(_) => {
-                    get_audio(
-                        text_chunk,
-                        config.url.as_ref(),
-                        config.speaker_id.as_deref().unwrap(),
-                        audio_path,
-                        Duration::from_secs(config.timeout as u64),
-                    )
-                    .unwrap_or_else(|status_code| {
-                        panic!("Get audio failed with status code: {}", status_code)
-                    });
+            if let Ok(file) = File::open(audio_path) {
+                sink.append(Decoder::new(BufReader::new(file)).unwrap());
+            } else {
+                get_audio(
+                    text_chunk,
+                    config.url.as_ref(),
+                    config.speaker_id.as_deref().unwrap(),
+                    audio_path,
+                    Duration::from_secs(config.timeout as u64),
+                )
+                .unwrap_or_else(|status_code| {
+                    panic!("Get audio failed with status code: {status_code}")
+                });
 
-                    if config.playback_speed != 1.0 {
-                        match modify_speed(audio_path.to_owned(), config.playback_speed) {
-                            Ok(_) => {}
-                            Err(err) => {
-                                if err.kind() == std::io::ErrorKind::NotFound {
-                                    println!(
-                                        "ffmpeg not found, please install it to modify playback speed"
-                                    );
-                                } else {
-                                    println!("Error modifying playback speed: {}", err);
-                                }
-                                std::process::exit(1);
+                if (config.playback_speed - 1.0).abs() > f32::EPSILON {
+                    match modify_speed(audio_path.to_owned(), config.playback_speed) {
+                        Ok(()) => {}
+                        Err(err) => {
+                            if err.kind() == std::io::ErrorKind::NotFound {
+                                println!(
+                                    "ffmpeg not found, please install it to modify playback speed"
+                                );
+                            } else {
+                                println!("Error modifying playback speed: {err}");
                             }
+                            exit(1);
                         }
                     }
-
-                    sink.append(
-                        Decoder::new(BufReader::new(File::open(audio_path).unwrap())).unwrap(),
-                    );
                 }
+
+                sink.append(Decoder::new(BufReader::new(File::open(audio_path).unwrap())).unwrap());
             }
         }
         // Play the audio until there's nothing left to play or exited via the menu
         #[cfg(target_os = "linux")]
         while !sink.empty() {
             // Update the menu tool tip text and play/pause status
-            menu_update(handle.clone().unwrap(), &sink);
-            std::thread::sleep(Duration::from_millis(200));
+
+            use std::thread::sleep;
+            menu_update(&handle.clone().unwrap(), &sink);
+            sleep(Duration::from_millis(200));
         }
 
         // Play the audio until there's nothing left to play
@@ -320,7 +329,7 @@ mod tests {
     fn hash() {
         let text = "This is a test";
         let hash = super::calculate_hash(&text);
-        assert_eq!(hash, 10995228888654166610);
+        assert_eq!(hash, 10_995_228_888_654_166_610);
     }
 
     #[test]
@@ -426,7 +435,7 @@ mod tests {
             assert_eq!(tray.status, "Testing");
         });
 
-        super::menu_update(handle.clone(), &sink);
+        super::menu_update(&handle.clone(), &sink);
 
         handle.update(|tray: &mut super::Menu| {
             tray.playing = false;
@@ -444,9 +453,9 @@ mod tests {
 
         let project_dirs = ProjectDirs::from("com", "chasecares", "private_speech").unwrap();
         let config_path = project_dirs.config_dir().to_str().unwrap();
-        let config_file = format!("{}/config.toml", config_path);
+        let config_file = format!("{config_path}/config.toml");
         let file_content = std::fs::read_to_string(config_file).unwrap();
-        let config: Config = super::Config::try_from(file_content.as_str()).unwrap();
+        let config: Config = Config::try_from(file_content.as_str()).unwrap();
 
         config
     }
