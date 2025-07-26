@@ -1,5 +1,5 @@
 // Private Speech - A text to speech program that uses a local TTS server
-// Copyright (C) 2023  Chase C <hi@chasecares.dev>
+// Copyright (C) 2025  Chase C <hi@chasecares.dev>
 // SPDX-License-Identifier: GPL-2.0-only
 
 use std::io::{BufReader, Write};
