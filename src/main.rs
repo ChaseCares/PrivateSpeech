@@ -2,17 +2,17 @@
 // Copyright (C) 2023  Chase C <hi@chasecares.dev>
 // SPDX-License-Identifier: GPL-2.0-only
 
-use std::fs::File;
 use std::io::{BufReader, Write};
 use std::process;
 use std::process::Command;
 use std::time::Duration;
+use std::{ffi::OsStr, fs::File};
 
 use directories::ProjectDirs;
 use regex::Regex;
 use reqwest::{blocking::Client, StatusCode};
-use rodio::{Decoder, OutputStream, Sink};
-use sysinfo::{Pid, PidExt, ProcessExt, System, SystemExt};
+use rodio::{Decoder, OutputStreamBuilder, Sink};
+use sysinfo::{Pid, System};
 
 use config::Config;
 #[cfg(target_os = "linux")]
@@ -112,7 +112,7 @@ fn chunk_text<'a>(
         // Create a tiny first chunk to get the audio playing quickly
         if quick_first {
             let mut first_chunk_point = 0;
-            text.chars().enumerate().any(|(_, c)| {
+            text.chars().any(|c| {
                 first_chunk_point += c.len_utf8();
                 if c == ' ' {
                     spaces += 1;
@@ -186,7 +186,7 @@ fn main() {
     let mut previous_process: Option<&sysinfo::Process> = None;
     let this_process = Pid::from_u32(process::id());
 
-    for process in sys.processes_by_name(APP_NAME) {
+    for process in sys.processes_by_name(OsStr::new(APP_NAME)) {
         if process.pid() != this_process {
             previous_process = Some(process);
         }
@@ -196,8 +196,8 @@ fn main() {
         process.kill();
     } else {
         // Audio output
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-        let sink: Sink = Sink::try_new(&stream_handle).unwrap();
+        let stream_handle = OutputStreamBuilder::open_default_stream().unwrap();
+        let sink = Sink::connect_new(stream_handle.mixer());
 
         // Tray icon
         #[cfg(target_os = "linux")]
@@ -408,7 +408,7 @@ mod tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn menu() {
-        use rodio::{OutputStream, Sink};
+        use rodio::{OutputStreamBuilder, Sink};
 
         let service = ksni::TrayService::new(super::Menu {
             playing: true,
@@ -418,8 +418,8 @@ mod tests {
         let handle = service.handle();
         service.spawn();
 
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-        let sink: Sink = Sink::try_new(&stream_handle).unwrap();
+        let stream_handle = OutputStreamBuilder::open_default_stream().unwrap();
+        let sink = Sink::connect_new(stream_handle.mixer());
 
         handle.update(|tray: &mut super::Menu| {
             assert!(tray.playing);
